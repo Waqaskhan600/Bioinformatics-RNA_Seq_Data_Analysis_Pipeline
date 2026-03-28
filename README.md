@@ -26,7 +26,14 @@ The script expects the following bioinformatics tools to be installed and availa
 - **MultiQC**
 - **Subread** (Provides `featureCounts`)
 
-Additionally, the pipeline expects **Trimmomatic** to be downloaded locally. You will need to define the path to its `.jar` executable in the script.
+### Setting up Trimmomatic
+
+Unlike the other tools that can be installed directly into your `$PATH` (e.g., via `apt` or `conda`), the pipeline expects **Trimmomatic** to be downloaded and executed explicitly via its compiled Java `.jar` file. 
+
+To set it up:
+1. Download the latest version of [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic).
+2. Extract the downloaded zip file into your project folder.
+3. Update the `TRIMMOMATIC_JAR` configuration variable in `run_pipeline.sh` to point to the exact location of the extracted `.jar` file (e.g., `Trimmomatic-0.39/trimmomatic-0.39.jar`).
 
 ---
 

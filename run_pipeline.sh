@@ -17,7 +17,7 @@ REFERENCE_GTF="${PROJECT_DIR}/references/gtf/chr22.gtf"    # Annotation GTF
 
 TRIMMOMATIC_JAR="${PROJECT_DIR}/Trimmomatic-0.39/trimmomatic-0.39.jar"
 
-SAMPLE="demo_1" # Sample prefix for processing
+SAMPLE="HBR_1" # Sample prefix for processing
 THREADS=6
 
 # Dynamic sample output directory
