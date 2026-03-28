@@ -10,7 +10,7 @@ SECONDS=0
 # ==============================================================================
 PROJECT_DIR="/media/user/New_Volume/RNA_pipeline_update"
 DATA_DIR="${PROJECT_DIR}/Reads"
-RESULTS_DIR="${PROJECT_DIR}/results"
+OUTPUT_DIR="${PROJECT_DIR}/output"
 
 REFERENCE_INDEX="${PROJECT_DIR}/references/index/chr22.fa" # HISAT2 Index base
 REFERENCE_GTF="${PROJECT_DIR}/references/gtf/chr22.gtf"    # Annotation GTF
@@ -20,17 +20,17 @@ TRIMMOMATIC_JAR="${PROJECT_DIR}/Trimmomatic-0.39/trimmomatic-0.39.jar"
 SAMPLE="demo_1" # Sample prefix for processing
 THREADS=6
 
+# Dynamic sample output directory
+SAMPLE_OUT="${OUTPUT_DIR}/${SAMPLE}"
+
 # ==============================================================================
 # 2. Folder Structure Verification & Creation
 # ==============================================================================
-echo "==> Setting up output directories in ${RESULTS_DIR}..."
-mkdir -p "${RESULTS_DIR}/qc/fastqc1"
-mkdir -p "${RESULTS_DIR}/qc/fastqc2"
-mkdir -p "${RESULTS_DIR}/qc/multiqc1"
-mkdir -p "${RESULTS_DIR}/qc/multiqc2"
-mkdir -p "${RESULTS_DIR}/trimmed"
-mkdir -p "${RESULTS_DIR}/alignments"
-mkdir -p "${RESULTS_DIR}/quant"
+echo "==> Setting up output directories in ${SAMPLE_OUT}..."
+mkdir -p "${SAMPLE_OUT}/qc"
+mkdir -p "${SAMPLE_OUT}/trimmed/qc"
+mkdir -p "${SAMPLE_OUT}/alignments"
+mkdir -p "${SAMPLE_OUT}/quant"
 echo "Output Directories created/verified."
 
 # ==============================================================================
@@ -84,27 +84,27 @@ echo "--------------------------------------------------"
 
 # Run fastqc on original reads
 echo "  -> Running FastQC on original reads..."
-fastqc "${DATA_DIR}/${SAMPLE}_R1.fq" "${DATA_DIR}/${SAMPLE}_R2.fq" -o "${RESULTS_DIR}/qc/fastqc1" -t ${THREADS}
+fastqc "${DATA_DIR}/${SAMPLE}_R1.fq" "${DATA_DIR}/${SAMPLE}_R2.fq" -o "${SAMPLE_OUT}/qc" -t ${THREADS}
 
 # Run trimmomatic to trim reads with poor quality
 echo "  -> Running Trimmomatic..."
 java -jar "$TRIMMOMATIC_JAR" PE -threads ${THREADS} \
     "${DATA_DIR}/${SAMPLE}_R1.fq" "${DATA_DIR}/${SAMPLE}_R2.fq" \
-    "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.unpaired.R1.fq" \
-    "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.unpaired.R2.fq" \
+    "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R1.fq" \
+    "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R2.fq" \
     TRAILING:10 -phred33
 
 echo "  -> Trimmomatic finished running for ${SAMPLE}!"
 
 # Run fastqc on trimmed reads
 echo "  -> Running FastQC on trimmed reads..."
-fastqc "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -o "${RESULTS_DIR}/qc/fastqc2" -t ${THREADS}
+fastqc "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -o "${SAMPLE_OUT}/trimmed/qc" -t ${THREADS}
 echo "  -> Fastqc completed for ${SAMPLE}"
 
 # Run HISAT2 for alignment
 echo "  -> Running HISAT2 and formatting with samtools..."
-hisat2 -q -x "$REFERENCE_INDEX" -1 "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" -2 "${RESULTS_DIR}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -p ${THREADS} | \
-    samtools sort -@ ${THREADS} -o "${RESULTS_DIR}/alignments/${SAMPLE}.bam"
+hisat2 -q -x "$REFERENCE_INDEX" -1 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" -2 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -p ${THREADS} | \
+    samtools sort -@ ${THREADS} -o "${SAMPLE_OUT}/alignments/${SAMPLE}.bam"
 echo "  -> HISAT2 finished running for ${SAMPLE}!"
 
 
@@ -114,11 +114,11 @@ echo "--------------------------------------------------"
 
 # Run MultiQC
 echo "Running MultiQC on initial FastQC..."
-multiqc "${RESULTS_DIR}/qc/fastqc1" -o "${RESULTS_DIR}/qc/multiqc1" || echo "Warning: multiqc failed"
+multiqc "${SAMPLE_OUT}/qc" -o "${SAMPLE_OUT}/qc" || echo "Warning: multiqc failed"
 
-# Run MultiQC on second Fastqc reports
+# Run MultiQC on Trimmed FastQC reports
 echo "Running MultiQC on trimmed FastQC..."
-multiqc "${RESULTS_DIR}/qc/fastqc2" -o "${RESULTS_DIR}/qc/multiqc2" || echo "Warning: multiqc failed"
+multiqc "${SAMPLE_OUT}/trimmed/qc" -o "${SAMPLE_OUT}/trimmed/qc" || echo "Warning: multiqc failed"
 
 echo "--------------------------------------------------"
 echo "Running Quantification"
@@ -126,11 +126,11 @@ echo "--------------------------------------------------"
 
 # Run featureCounts for quantification on the BAM file
 echo "Running featureCounts..."
-featureCounts -p -a "$REFERENCE_GTF" -T ${THREADS} -o "${RESULTS_DIR}/quant/output_data.txt" "${RESULTS_DIR}/alignments/${SAMPLE}.bam"
+featureCounts -p -a "$REFERENCE_GTF" -T ${THREADS} -o "${SAMPLE_OUT}/quant/${SAMPLE}_output_data.txt" "${SAMPLE_OUT}/alignments/${SAMPLE}.bam"
 
 # clean feature matrix
 echo "Cleaning feature matrix..."
-cut -f1,7- -s "${RESULTS_DIR}/quant/output_data.txt" > "${RESULTS_DIR}/quant/counts_data.txt"
+cut -f1,7- -s "${SAMPLE_OUT}/quant/${SAMPLE}_output_data.txt" > "${SAMPLE_OUT}/quant/${SAMPLE}_counts_data.txt"
 
 echo "featureCounts finished running!"
 echo "Pipeline execution completed successfully!"
