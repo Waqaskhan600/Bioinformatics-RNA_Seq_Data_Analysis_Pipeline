@@ -1,0 +1,12 @@
+name: rna_seq_pipeline
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - fastqc
+  - openjdk
+  - hisat2
+  - samtools
+  - multiqc
+  - subread

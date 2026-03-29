@@ -35,18 +35,57 @@ mkdir -p "${SAMPLE_OUT}/logs"
 echo "Output Directories created/verified."
 
 # ==============================================================================
-# 3. Required Packages Validation
+# 3. Required Packages Validation & Installation
 # ==============================================================================
 echo "==> Validating required packages..."
 REQUIRED_CMDS=("fastqc" "java" "hisat2" "samtools" "multiqc" "featureCounts")
 
+MISSING_CMDS=()
 for cmd in "${REQUIRED_CMDS[@]}"; do
     if ! command -v "$cmd" &> /dev/null; then
-        echo "Error: Required command '$cmd' is not installed or not in PATH."
-        exit 1
+        MISSING_CMDS+=("$cmd")
     fi
 done
-echo "All required packages are available."
+
+if [ ${#MISSING_CMDS[@]} -ne 0 ]; then
+    echo "Missing required packages: ${MISSING_CMDS[*]}. Attempting to resolve via Conda..."
+    
+    if ! command -v conda &> /dev/null; then
+        echo "Error: Conda is not installed or not in PATH. Please install Conda to auto-manage dependencies."
+        exit 1
+    fi
+    
+    ENV_NAME="rna_seq_pipeline"
+    ENV_YAML="${PROJECT_DIR}/environment.yml"
+    
+    if [[ ! -f "$ENV_YAML" ]]; then
+        echo "Error: environment.yml not found at $ENV_YAML"
+        exit 1
+    fi
+    
+    # Initialize conda in script
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    
+    # Check if environment already exists
+    if ! conda env list | grep -q "^${ENV_NAME} "; then
+        echo "Creating Conda environment '${ENV_NAME}' from ${ENV_YAML}..."
+        conda env create -f "$ENV_YAML"
+    fi
+    
+    echo "Activating Conda environment '${ENV_NAME}'..."
+    conda activate "${ENV_NAME}"
+    
+    # Re-verify
+    for cmd in "${REQUIRED_CMDS[@]}"; do
+        if ! command -v "$cmd" &> /dev/null; then
+            echo "Error: Failed to install '$cmd' via Conda."
+            exit 1
+        fi
+    done
+    echo "All dependencies successfully resolved via Conda!"
+else
+    echo "All required packages are already available."
+fi
 
 # ==============================================================================
 # 4. Reference Files Validation
