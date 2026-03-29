@@ -9,16 +9,16 @@ SECONDS=0
 # 1. Variable Definitions
 # ==============================================================================
 PROJECT_DIR="/media/user/New_Volume/RNA_pipeline_update"
-DATA_DIR="${PROJECT_DIR}/Reads"
-OUTPUT_DIR="${PROJECT_DIR}/output"
+DATA_DIR="${PROJECT_DIR}/Reads" # Input directory for raw FASTQ files
+OUTPUT_DIR="${PROJECT_DIR}/output" # Output directory for processed files
 
 REFERENCE_INDEX="${PROJECT_DIR}/references/index/chr22.fa" # HISAT2 Index base
 REFERENCE_GTF="${PROJECT_DIR}/references/gtf/chr22.gtf"    # Annotation GTF
 
-TRIMMOMATIC_JAR="${PROJECT_DIR}/Trimmomatic-0.39/trimmomatic-0.39.jar"
+TRIMMOMATIC_JAR="${PROJECT_DIR}/Trimmomatic-0.39/trimmomatic-0.39.jar" # Trimmomatic JAR file
 
 SAMPLE="HBR_1" # Sample prefix for processing
-THREADS=6
+THREADS=6 # Number of threads to use for parallel processing
 
 # Dynamic sample output directory
 SAMPLE_OUT="${OUTPUT_DIR}/${SAMPLE}"
@@ -67,8 +67,23 @@ if ! ls ${REFERENCE_INDEX}* &> /dev/null; then
     exit 1
 fi
 
-if [[ ! -f "${DATA_DIR}/${SAMPLE}_R1.fq" ]] || [[ ! -f "${DATA_DIR}/${SAMPLE}_R2.fq" ]]; then
-    echo "Error: Paired-end fastq files for sample '${SAMPLE}' not found in ${DATA_DIR}"
+# Determine extension for read 1
+if [[ -f "${DATA_DIR}/${SAMPLE}_R1.fq" ]]; then R1_FILE="${DATA_DIR}/${SAMPLE}_R1.fq";
+elif [[ -f "${DATA_DIR}/${SAMPLE}_R1.fastq" ]]; then R1_FILE="${DATA_DIR}/${SAMPLE}_R1.fastq";
+elif [[ -f "${DATA_DIR}/${SAMPLE}_R1.fq.gz" ]]; then R1_FILE="${DATA_DIR}/${SAMPLE}_R1.fq.gz";
+elif [[ -f "${DATA_DIR}/${SAMPLE}_R1.fastq.gz" ]]; then R1_FILE="${DATA_DIR}/${SAMPLE}_R1.fastq.gz";
+else
+    echo "Error: Read 1 for sample '${SAMPLE}' not found. Checked .fq, .fastq, .fq.gz, and .fastq.gz in ${DATA_DIR}"
+    exit 1
+fi
+
+# Determine extension for read 2
+if [[ -f "${DATA_DIR}/${SAMPLE}_R2.fq" ]]; then R2_FILE="${DATA_DIR}/${SAMPLE}_R2.fq";
+elif [[ -f "${DATA_DIR}/${SAMPLE}_R2.fastq" ]]; then R2_FILE="${DATA_DIR}/${SAMPLE}_R2.fastq";
+elif [[ -f "${DATA_DIR}/${SAMPLE}_R2.fq.gz" ]]; then R2_FILE="${DATA_DIR}/${SAMPLE}_R2.fq.gz";
+elif [[ -f "${DATA_DIR}/${SAMPLE}_R2.fastq.gz" ]]; then R2_FILE="${DATA_DIR}/${SAMPLE}_R2.fastq.gz";
+else
+    echo "Error: Read 2 for sample '${SAMPLE}' not found. Checked .fq, .fastq, .fq.gz, and .fastq.gz in ${DATA_DIR}"
     exit 1
 fi
 echo "Reference and input files validated successfully."
@@ -84,12 +99,12 @@ echo "--------------------------------------------------"
 
 # Run fastqc on original reads
 echo "  -> Running FastQC on original reads..."
-fastqc "${DATA_DIR}/${SAMPLE}_R1.fq" "${DATA_DIR}/${SAMPLE}_R2.fq" -o "${SAMPLE_OUT}/qc" -t ${THREADS}
+fastqc "$R1_FILE" "$R2_FILE" -o "${SAMPLE_OUT}/qc" -t ${THREADS}
 
 # Run trimmomatic to trim reads with poor quality
 echo "  -> Running Trimmomatic..."
 java -jar "$TRIMMOMATIC_JAR" PE -threads ${THREADS} \
-    "${DATA_DIR}/${SAMPLE}_R1.fq" "${DATA_DIR}/${SAMPLE}_R2.fq" \
+    "$R1_FILE" "$R2_FILE" \
     "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R1.fq" \
     "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R2.fq" \
     TRAILING:10 -phred33
