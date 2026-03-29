@@ -31,6 +31,7 @@ mkdir -p "${SAMPLE_OUT}/qc"
 mkdir -p "${SAMPLE_OUT}/trimmed/qc"
 mkdir -p "${SAMPLE_OUT}/alignments"
 mkdir -p "${SAMPLE_OUT}/quant"
+mkdir -p "${SAMPLE_OUT}/logs"
 echo "Output Directories created/verified."
 
 # ==============================================================================
@@ -99,7 +100,7 @@ echo "--------------------------------------------------"
 
 # Run fastqc on original reads
 echo "  -> Running FastQC on original reads..."
-fastqc "$R1_FILE" "$R2_FILE" -o "${SAMPLE_OUT}/qc" -t ${THREADS}
+fastqc "$R1_FILE" "$R2_FILE" -o "${SAMPLE_OUT}/qc" -t ${THREADS} > "${SAMPLE_OUT}/logs/fastqc_raw.log" 2>&1
 
 # Run trimmomatic to trim reads with poor quality
 echo "  -> Running Trimmomatic..."
@@ -107,18 +108,18 @@ java -jar "$TRIMMOMATIC_JAR" PE -threads ${THREADS} \
     "$R1_FILE" "$R2_FILE" \
     "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R1.fq" \
     "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R2.fq" \
-    TRAILING:10 -phred33
+    TRAILING:10 -phred33 > "${SAMPLE_OUT}/logs/trimmomatic.log" 2>&1
 
 echo "  -> Trimmomatic finished running for ${SAMPLE}!"
 
 # Run fastqc on trimmed reads
 echo "  -> Running FastQC on trimmed reads..."
-fastqc "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -o "${SAMPLE_OUT}/trimmed/qc" -t ${THREADS}
+fastqc "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -o "${SAMPLE_OUT}/trimmed/qc" -t ${THREADS} > "${SAMPLE_OUT}/logs/fastqc_trimmed.log" 2>&1
 echo "  -> Fastqc completed for ${SAMPLE}"
 
 # Run HISAT2 for alignment
 echo "  -> Running HISAT2 and formatting with samtools..."
-hisat2 -q -x "$REFERENCE_INDEX" -1 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" -2 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -p ${THREADS} | \
+hisat2 -q -x "$REFERENCE_INDEX" -1 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" -2 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -p ${THREADS} 2> "${SAMPLE_OUT}/logs/hisat2_alignment.log" | \
     samtools sort -@ ${THREADS} -o "${SAMPLE_OUT}/alignments/${SAMPLE}.bam"
 echo "  -> HISAT2 finished running for ${SAMPLE}!"
 
@@ -129,11 +130,11 @@ echo "--------------------------------------------------"
 
 # Run MultiQC
 echo "Running MultiQC on initial FastQC..."
-multiqc "${SAMPLE_OUT}/qc" -o "${SAMPLE_OUT}/qc" || echo "Warning: multiqc failed"
+multiqc "${SAMPLE_OUT}/qc" -o "${SAMPLE_OUT}/qc" > "${SAMPLE_OUT}/logs/multiqc_raw.log" 2>&1 || echo "Warning: multiqc failed"
 
 # Run MultiQC on Trimmed FastQC reports
 echo "Running MultiQC on trimmed FastQC..."
-multiqc "${SAMPLE_OUT}/trimmed/qc" -o "${SAMPLE_OUT}/trimmed/qc" || echo "Warning: multiqc failed"
+multiqc "${SAMPLE_OUT}/trimmed/qc" -o "${SAMPLE_OUT}/trimmed/qc" > "${SAMPLE_OUT}/logs/multiqc_trimmed.log" 2>&1 || echo "Warning: multiqc failed"
 
 echo "--------------------------------------------------"
 echo "Running Quantification"
@@ -141,7 +142,7 @@ echo "--------------------------------------------------"
 
 # Run featureCounts for quantification on the BAM file
 echo "Running featureCounts..."
-featureCounts -p -a "$REFERENCE_GTF" -T ${THREADS} -o "${SAMPLE_OUT}/quant/${SAMPLE}_output_data.txt" "${SAMPLE_OUT}/alignments/${SAMPLE}.bam"
+featureCounts -p -a "$REFERENCE_GTF" -T ${THREADS} -o "${SAMPLE_OUT}/quant/${SAMPLE}_output_data.txt" "${SAMPLE_OUT}/alignments/${SAMPLE}.bam" > "${SAMPLE_OUT}/logs/featureCounts.log" 2>&1
 
 # clean feature matrix
 echo "Cleaning feature matrix..."
@@ -152,3 +153,8 @@ echo "Pipeline execution completed successfully!"
 
 duration=$SECONDS
 echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+
+echo -e "\nThank you for using this script! "
+echo "If you found this useful and informative, or for any collaboration and research assistance,"
+echo "please reach out to me on LinkedIn:"
+echo -e "https://www.linkedin.com/in/waqas-khan-3b937b184/\n"
