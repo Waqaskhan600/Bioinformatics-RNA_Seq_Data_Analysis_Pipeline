@@ -37,6 +37,19 @@ To set it up:
 2. Extract the downloaded zip file into your project folder.
 3. Update the `TRIMMOMATIC_JAR` configuration variable in `run_pipeline.sh` to point to the exact location of the extracted `.jar` file (e.g., `Trimmomatic-0.39/trimmomatic-0.39.jar`).
 
+### Setting up HISAT2 Reference Index
+
+Before running the pipeline for the first time, you must build an index of your reference genome (`.fa` or `.fasta`) for HISAT2. **You only need to do this once per reference genome.**
+
+To build the index, run the following command in your terminal:
+
+```bash
+# Example indexing for human chromosome 22 using 6 threads (adjust paths as necessary)
+hisat2-build -p 6 references/chr22.fa references/index/chr22.fa
+```
+
+Make sure the output prefix (e.g., `references/index/chr22.fa`) matches the `REFERENCE_INDEX` path defined in `run_pipeline.sh`.
+
 ---
 
 ## Directory Structure
