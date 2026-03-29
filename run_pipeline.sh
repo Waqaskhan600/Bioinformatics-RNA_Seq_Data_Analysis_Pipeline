@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Exit immediately if a command exits with a non-zero status
-set -e
+set -eo pipefail
 
 SECONDS=0
 
@@ -100,7 +100,7 @@ echo "--------------------------------------------------"
 
 # Run fastqc on original reads
 echo "  -> Running FastQC on original reads..."
-fastqc "$R1_FILE" "$R2_FILE" -o "${SAMPLE_OUT}/qc" -t ${THREADS} > "${SAMPLE_OUT}/logs/fastqc_raw.log" 2>&1
+fastqc "$R1_FILE" "$R2_FILE" -o "${SAMPLE_OUT}/qc" -t ${THREADS} 2>&1 | tee "${SAMPLE_OUT}/logs/fastqc_raw.log"
 
 # Run trimmomatic to trim reads with poor quality
 echo "  -> Running Trimmomatic..."
@@ -108,18 +108,18 @@ java -jar "$TRIMMOMATIC_JAR" PE -threads ${THREADS} \
     "$R1_FILE" "$R2_FILE" \
     "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R1.fq" \
     "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.unpaired.R2.fq" \
-    TRAILING:10 -phred33 > "${SAMPLE_OUT}/logs/trimmomatic.log" 2>&1
+    TRAILING:10 -phred33 2>&1 | tee "${SAMPLE_OUT}/logs/trimmomatic.log"
 
 echo "  -> Trimmomatic finished running for ${SAMPLE}!"
 
 # Run fastqc on trimmed reads
 echo "  -> Running FastQC on trimmed reads..."
-fastqc "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -o "${SAMPLE_OUT}/trimmed/qc" -t ${THREADS} > "${SAMPLE_OUT}/logs/fastqc_trimmed.log" 2>&1
+fastqc "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -o "${SAMPLE_OUT}/trimmed/qc" -t ${THREADS} 2>&1 | tee "${SAMPLE_OUT}/logs/fastqc_trimmed.log"
 echo "  -> Fastqc completed for ${SAMPLE}"
 
 # Run HISAT2 for alignment
 echo "  -> Running HISAT2 and formatting with samtools..."
-hisat2 -q -x "$REFERENCE_INDEX" -1 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" -2 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -p ${THREADS} 2> "${SAMPLE_OUT}/logs/hisat2_alignment.log" | \
+hisat2 -q -x "$REFERENCE_INDEX" -1 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R1.fq" -2 "${SAMPLE_OUT}/trimmed/${SAMPLE}.trimmed.paired.R2.fq" -p ${THREADS} 2> >(tee "${SAMPLE_OUT}/logs/hisat2_alignment.log" >&2) | \
     samtools sort -@ ${THREADS} -o "${SAMPLE_OUT}/alignments/${SAMPLE}.bam"
 echo "  -> HISAT2 finished running for ${SAMPLE}!"
 
@@ -130,11 +130,11 @@ echo "--------------------------------------------------"
 
 # Run MultiQC
 echo "Running MultiQC on initial FastQC..."
-multiqc "${SAMPLE_OUT}/qc" -o "${SAMPLE_OUT}/qc" > "${SAMPLE_OUT}/logs/multiqc_raw.log" 2>&1 || echo "Warning: multiqc failed"
+multiqc "${SAMPLE_OUT}/qc" -o "${SAMPLE_OUT}/qc" 2>&1 | tee "${SAMPLE_OUT}/logs/multiqc_raw.log"
 
 # Run MultiQC on Trimmed FastQC reports
 echo "Running MultiQC on trimmed FastQC..."
-multiqc "${SAMPLE_OUT}/trimmed/qc" -o "${SAMPLE_OUT}/trimmed/qc" > "${SAMPLE_OUT}/logs/multiqc_trimmed.log" 2>&1 || echo "Warning: multiqc failed"
+multiqc "${SAMPLE_OUT}/trimmed/qc" -o "${SAMPLE_OUT}/trimmed/qc" 2>&1 | tee "${SAMPLE_OUT}/logs/multiqc_trimmed.log"
 
 echo "--------------------------------------------------"
 echo "Running Quantification"
@@ -142,7 +142,7 @@ echo "--------------------------------------------------"
 
 # Run featureCounts for quantification on the BAM file
 echo "Running featureCounts..."
-featureCounts -p -a "$REFERENCE_GTF" -T ${THREADS} -o "${SAMPLE_OUT}/quant/${SAMPLE}_output_data.txt" "${SAMPLE_OUT}/alignments/${SAMPLE}.bam" > "${SAMPLE_OUT}/logs/featureCounts.log" 2>&1
+featureCounts -p -a "$REFERENCE_GTF" -T ${THREADS} -o "${SAMPLE_OUT}/quant/${SAMPLE}_output_data.txt" "${SAMPLE_OUT}/alignments/${SAMPLE}.bam" 2>&1 | tee "${SAMPLE_OUT}/logs/featureCounts.log"
 
 # clean feature matrix
 echo "Cleaning feature matrix..."
