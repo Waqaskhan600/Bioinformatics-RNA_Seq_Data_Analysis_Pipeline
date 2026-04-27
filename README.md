@@ -119,3 +119,4 @@ This count matrix includes raw gene counts and is ready to be imported into R/Py
 Thank you for using this script! 
 If you found this useful and informative, or for any collaboration and research assistance, please reach out to me on LinkedIn: 
 [Waqas Khan on LinkedIn](https://www.linkedin.com/in/waqas-khan-3b937b184/)
+[Waqas Khan Upwork](https://www.upwork.com/freelancers/~01f83f8629c246e22a)
